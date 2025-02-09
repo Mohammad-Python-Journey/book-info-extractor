@@ -1,11 +1,14 @@
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image
+from io import BytesIO
+import concurrent.futures
 
 BASE_URL = "http://books.toscrape.com/catalogue"
 
 
 def get_soup(url):
-    response = requests.get(url)
+    response = requests.get(url, timeout=5)
     return BeautifulSoup(response.text, 'html.parser') if response.status_code == 200 else None
 
 
@@ -18,10 +21,35 @@ def get_book_details(book_url):
     title = soup.find('h1').get_text(strip=True)
     price = soup.find('p', class_='price_color').get_text(
         strip=True).replace('Â', '').strip()
-    description = soup.find('meta', {'name': 'description'})
+    rating = soup.find('p', class_='star-rating')['class'][1] if soup.find(
+        'p', class_='star-rating') else 'No rating'
+    availability = soup.find(
+        'p', class_='instock availability').get_text(strip=True)
+    description_meta = soup.find('meta', {'name': 'description'})
+    description = description_meta['content'].strip(
+    ) if description_meta else 'No description available'
+    description = ' '.join(description.split()[
+                           :20]) + '...' if len(description.split()) > 20 else description
+    book_link = book_url
 
-    print(f"\nTitle: {title}\nPrice: {price}\nDescription: {
-          description['content'].strip() if description else 'No description available'}")
+    # Download and save book image asynchronously
+    image_url = "http://books.toscrape.com/" + \
+        soup.find('img')['src'].replace('../', '')
+    try:
+        image_response = requests.get(image_url, timeout=5)
+        if image_response.status_code == 200:
+            image = Image.open(BytesIO(image_response.content))
+            image_filename = f"{title.replace(' ', '_')}.jpg"
+            image.save(image_filename)
+            print(f"Image downloaded: {image_filename}")
+            image.show()
+        else:
+            print("Failed to download image")
+    except requests.exceptions.RequestException:
+        print("Image request timed out")
+
+    print(f"\nTitle: {title}\nPrice: {price}\nRating: {rating}\nAvailability: {
+          availability}\nDescription: {description}\nBook Link: {book_link}\n")
 
 
 def get_books_from_category(category_url):
@@ -35,7 +63,7 @@ def get_books_from_category(category_url):
                    book.find('a')['href'][8:]}") for book in books]
 
     print("\nBooks in this category:")
-    for i, (title,_) in enumerate(book_links, 1):
+    for i, (title, _) in enumerate(book_links, 1):
         print(f"{i}. {title}")
 
     try:
