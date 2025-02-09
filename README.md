@@ -53,7 +53,7 @@ Welcome to the Book Price Scraper – your ultimate tool for quickly gathering d
 
 Clone this repository.
 
-Install the necessary libraries by running:pip install requests beautifulsoup4 pillow
+Install the necessary libraries by running: pip install requests beautifulsoup4 pillow
 
 Run the script and follow the on-screen instructions to select a category and book: python scraper.py
 
